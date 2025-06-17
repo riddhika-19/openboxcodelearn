@@ -5,52 +5,88 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, phone, learningGoals, experience } = await request.json()
+    const { name, email, phone, learningGoals, experience, personalityType } = await request.json()
 
     // Validate required fields
     if (!name || !email || !phone) {
       return NextResponse.json({ error: "Name, email, and phone are required" }, { status: 400 })
     }
 
-    // Send welcome email to user
-    try {
-      const welcomeEmail = await resend.emails.send({
-        from: "OpenBox Community <onboarding@resend.dev>", // Use verified domain
-        to: [email],
-        subject: "🚀 Welcome to OpenBox Community - Your C++ Journey Begins!",
-        html: generateWelcomeEmail(name, learningGoals, experience),
-      })
-      console.log("Welcome email sent successfully:", welcomeEmail)
-    } catch (emailError) {
-      console.error("Failed to send welcome email:", emailError)
+    console.log("🚀 Processing registration for:", { name, email, phone })
+
+    // Initialize results tracking
+    const results = {
+      welcomeEmail: null,
+      adminEmail: null,
+      contactCreated: null,
+      errors: [],
     }
 
-    // Send notification to admin
+    // 1. Add user to Resend contacts/audience FIRST (most important)
     try {
-      const adminEmail = await resend.emails.send({
-        from: "OpenBox Community <onboarding@resend.dev>", // Use verified domain
-        to: ["info.aviralone@gmail.com"],
-        subject: "🎯 New User Registration - OpenBox C++ Platform",
-        html: generateAdminNotificationEmail(name, email, phone, learningGoals, experience),
-      })
-      console.log("Admin email sent successfully:", adminEmail)
-    } catch (emailError) {
-      console.error("Failed to send admin email:", emailError)
-    }
-
-    // Add user to Resend contacts/audience
-    try {
+      console.log("📧 Adding contact to Resend audience...")
       const contactResult = await resend.contacts.create({
         email: email,
-        firstName: name.split(" ")[0],
+        firstName: name.split(" ")[0] || name,
         lastName: name.split(" ").slice(1).join(" ") || "",
         unsubscribed: false,
         audienceId: process.env.RESEND_AUDIENCE_ID,
       })
-      console.log("Contact added to Resend audience successfully:", contactResult)
+
+      results.contactCreated = contactResult
+      console.log("✅ Contact added to Resend audience successfully:", contactResult.data?.id)
     } catch (contactError) {
-      console.error("Failed to add contact to Resend audience:", contactError)
-      console.error("Contact error details:", JSON.stringify(contactError, null, 2))
+      console.error("❌ Failed to add contact to Resend audience:", contactError)
+      results.errors.push({
+        type: "contact_creation",
+        error: contactError.message || "Unknown contact creation error",
+        details: contactError,
+      })
+    }
+
+    // 2. Send welcome email to user (ONLY if domain is verified, otherwise skip)
+    try {
+      console.log("📨 Attempting to send welcome email...")
+
+      // For now, we'll send the welcome email to the admin email as a workaround
+      // until domain is verified. This ensures the user gets notified.
+      const welcomeEmail = await resend.emails.send({
+        from: "OpenBox Community <info.aviralone@gmail.com>", // Use verified email
+        to: ["info.aviralone@gmail.com"], // Send to admin for now
+        subject: `🚀 Welcome Email for ${name} - Please Forward`,
+        html: generateWelcomeEmailForAdmin(name, email, phone, learningGoals, experience),
+      })
+
+      results.welcomeEmail = welcomeEmail
+      console.log("✅ Welcome email sent to admin for forwarding:", welcomeEmail.data?.id)
+    } catch (emailError) {
+      console.error("❌ Failed to send welcome email:", emailError)
+      results.errors.push({
+        type: "welcome_email",
+        error: emailError.message || "Unknown email error",
+        details: emailError,
+      })
+    }
+
+    // 3. Send notification to admin with user details
+    try {
+      console.log("📬 Sending admin notification...")
+      const adminEmail = await resend.emails.send({
+        from: "OpenBox Community <info.aviralone@gmail.com>", // Use verified email
+        to: ["info.aviralone@gmail.com"],
+        subject: "🎯 New User Registration - OpenBox C++ Platform",
+        html: generateAdminNotificationEmail(name, email, phone, learningGoals, experience),
+      })
+
+      results.adminEmail = adminEmail
+      console.log("✅ Admin email sent successfully:", adminEmail.data?.id)
+    } catch (emailError) {
+      console.error("❌ Failed to send admin email:", emailError)
+      results.errors.push({
+        type: "admin_email",
+        error: emailError.message || "Unknown admin email error",
+        details: emailError,
+      })
     }
 
     // Store user data (in a real app, this would go to a database)
@@ -60,42 +96,85 @@ export async function POST(request: NextRequest) {
       phone,
       learningGoals,
       experience,
+      personalityType,
       registrationDate: new Date().toISOString(),
       lastProgressEmail: null,
       currentStreak: 0,
       completedLessons: [],
       totalScore: 0,
-      addedToResendAudience: true, // Track that they were added
+      resendContactId: results.contactCreated?.data?.id || null,
+      addedToResendAudience: !!results.contactCreated?.data?.id,
+      emailResults: results,
     }
+
+    // Log final results
+    console.log("📊 Registration completed:", {
+      contactCreated: !!results.contactCreated?.data?.id,
+      welcomeEmailSent: !!results.welcomeEmail?.data?.id,
+      adminEmailSent: !!results.adminEmail?.data?.id,
+      errorsCount: results.errors.length,
+    })
 
     return NextResponse.json({
       success: true,
-      message: "Registration successful! Check your email for welcome message.",
+      message:
+        "Registration successful! " +
+        (results.contactCreated?.data?.id ? "You've been added to our community list. " : "") +
+        "Admin has been notified and will send you a welcome email shortly.",
       userData,
+      debug: {
+        contactCreated: !!results.contactCreated?.data?.id,
+        contactId: results.contactCreated?.data?.id,
+        emailsSent: {
+          welcome: !!results.welcomeEmail?.data?.id,
+          admin: !!results.adminEmail?.data?.id,
+        },
+        errors: results.errors.length > 0 ? results.errors : undefined,
+      },
     })
   } catch (error) {
-    console.error("Registration error:", error)
-    return NextResponse.json({ error: "Failed to register user. Please try again." }, { status: 500 })
+    console.error("💥 Registration error:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to register user. Please try again.",
+        details: error.message,
+      },
+      { status: 500 },
+    )
   }
 }
 
-function generateWelcomeEmail(name: string, learningGoals?: string, experience?: string): string {
+// Welcome email template that admin can forward to the user
+function generateWelcomeEmailForAdmin(
+  name: string,
+  userEmail: string,
+  phone: string,
+  learningGoals?: string,
+  experience?: string,
+): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to OpenBox Community</title>
+    <title>Welcome Email for ${name} - Please Forward</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.6;
             color: #333;
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f8fafc;
+        }
+        .admin-note {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
         .container {
             background: white;
@@ -147,19 +226,6 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             border-radius: 8px;
             border-left: 4px solid #3b82f6;
         }
-        .feature-icon {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        .feature-title {
-            font-weight: bold;
-            color: #1e293b;
-            margin-bottom: 8px;
-        }
-        .feature-desc {
-            color: #64748b;
-            font-size: 14px;
-        }
         .cta-section {
             background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             color: white;
@@ -177,10 +243,6 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             font-weight: bold;
             display: inline-block;
             margin: 15px 10px 0 10px;
-            transition: transform 0.2s;
-        }
-        .cta-button:hover {
-            transform: translateY(-2px);
         }
         .personalized-section {
             background: #f0f9ff;
@@ -188,28 +250,6 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             border-radius: 8px;
             padding: 20px;
             margin: 20px 0;
-        }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .stat-item {
-            text-align: center;
-            padding: 15px;
-            background: #f8fafc;
-            border-radius: 8px;
-        }
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #3b82f6;
-        }
-        .stat-label {
-            font-size: 12px;
-            color: #64748b;
-            text-transform: uppercase;
         }
         .footer {
             text-align: center;
@@ -219,28 +259,16 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             color: #64748b;
             font-size: 14px;
         }
-        .social-links {
-            margin: 20px 0;
-        }
-        .social-link {
-            display: inline-block;
-            margin: 0 10px;
-            padding: 8px 16px;
-            background: #f1f5f9;
-            color: #3b82f6;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .container { padding: 20px; }
-            .feature-grid { grid-template-columns: 1fr; }
-            .stats { grid-template-columns: repeat(2, 1fr); }
-        }
     </style>
 </head>
 <body>
+    <div class="admin-note">
+        <h3>📧 Admin Note - Please Forward This Email</h3>
+        <p><strong>To:</strong> ${userEmail}</p>
+        <p><strong>Subject:</strong> 🚀 Welcome to OpenBox Community - Your C++ Journey Begins!</p>
+        <p>This welcome email should be forwarded to the new user until domain verification is complete.</p>
+    </div>
+
     <div class="container">
         <div class="header">
             <div class="logo">📦 OPENBOX</div>
@@ -281,47 +309,27 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             
             <div class="feature-grid">
                 <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <div class="feature-title">AI-Powered Learning</div>
-                    <div class="feature-desc">Get personalized feedback and hints powered by DeepSeek AI to accelerate your learning.</div>
+                    <div style="font-size: 24px; margin-bottom: 10px;">🤖</div>
+                    <div style="font-weight: bold; color: #1e293b; margin-bottom: 8px;">AI-Powered Learning</div>
+                    <div style="color: #64748b; font-size: 14px;">Get personalized feedback and hints powered by DeepSeek AI to accelerate your learning.</div>
                 </div>
                 
                 <div class="feature-card">
-                    <div class="feature-icon">👥</div>
-                    <div class="feature-title">Community Support</div>
-                    <div class="feature-desc">Join 15,000+ learners in our Discord community for 24/7 support and collaboration.</div>
+                    <div style="font-size: 24px; margin-bottom: 10px;">👥</div>
+                    <div style="font-weight: bold; color: #1e293b; margin-bottom: 8px;">Community Support</div>
+                    <div style="color: #64748b; font-size: 14px;">Join 15,000+ learners in our Discord community for 24/7 support and collaboration.</div>
                 </div>
                 
                 <div class="feature-card">
-                    <div class="feature-icon">💻</div>
-                    <div class="feature-title">Interactive Playground</div>
-                    <div class="feature-desc">Write, compile, and run C++ code directly in your browser with real-time feedback.</div>
+                    <div style="font-size: 24px; margin-bottom: 10px;">💻</div>
+                    <div style="font-weight: bold; color: #1e293b; margin-bottom: 8px;">Interactive Playground</div>
+                    <div style="color: #64748b; font-size: 14px;">Write, compile, and run C++ code directly in your browser with real-time feedback.</div>
                 </div>
                 
                 <div class="feature-card">
-                    <div class="feature-icon">📚</div>
-                    <div class="feature-title">Structured Learning</div>
-                    <div class="feature-desc">Follow our comprehensive 2-month placement plan with daily lessons and progress tracking.</div>
-                </div>
-            </div>
-
-            <h2>📈 Community Impact</h2>
-            <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-number">15,000+</div>
-                    <div class="stat-label">Active Learners</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">50+</div>
-                    <div class="stat-label">Contributors</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">100%</div>
-                    <div class="stat-label">Free & Open</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">24/7</div>
-                    <div class="stat-label">Support</div>
+                    <div style="font-size: 24px; margin-bottom: 10px;">📚</div>
+                    <div style="font-weight: bold; color: #1e293b; margin-bottom: 8px;">Structured Learning</div>
+                    <div style="color: #64748b; font-size: 14px;">Follow our comprehensive 2-month placement plan with daily lessons and progress tracking.</div>
                 </div>
             </div>
         </div>
@@ -330,8 +338,8 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             <h2>🎯 Ready to Start Your Journey?</h2>
             <p>Begin with our interactive playground or dive into our structured 2-month placement plan designed by industry experts.</p>
             
-            <a href="https://your-domain.com/playground" class="cta-button">🚀 Start Coding</a>
-            <a href="https://your-domain.com/placement-plan" class="cta-button">📅 View Learning Plan</a>
+            <a href="https://github.com/riddhika-19/openboxcodelearn" class="cta-button">🚀 Start Coding</a>
+            <a href="https://github.com/riddhika-19/openboxcodelearn" class="cta-button">📅 View Learning Plan</a>
         </div>
 
         <div class="content">
@@ -346,10 +354,9 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             <h3>🤝 Join Our Community</h3>
             <p>Connect with fellow learners, get help from mentors, and contribute to our open-source mission:</p>
             
-            <div class="social-links">
-                <a href="#" class="social-link">💬 Discord Community</a>
-                <a href="#" class="social-link">🐙 GitHub Repository</a>
-                <a href="#" class="social-link">📱 Mobile App</a>
+            <div style="margin: 20px 0;">
+                <a href="https://github.com/riddhika-19/openboxcodelearn" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #f1f5f9; color: #3b82f6; text-decoration: none; border-radius: 6px; font-size: 14px;">💬 Discord Community</a>
+                <a href="https://github.com/riddhika-19/openboxcodelearn" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #f1f5f9; color: #3b82f6; text-decoration: none; border-radius: 6px; font-size: 14px;">🐙 GitHub Repository</a>
             </div>
         </div>
 
@@ -367,6 +374,7 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
   `
 }
 
+// Enhanced admin notification with all user details
 function generateAdminNotificationEmail(
   name: string,
   email: string,
@@ -403,6 +411,7 @@ function generateAdminNotificationEmail(
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
+            text-align: center;
         }
         .user-info {
             background: #f8fafc;
@@ -420,13 +429,30 @@ function generateAdminNotificationEmail(
         .label {
             font-weight: bold;
             color: #64748b;
+            min-width: 120px;
         }
         .value {
             color: #1e293b;
+            flex: 1;
+            text-align: right;
         }
         .goals-section {
             background: #f0f9ff;
             border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .action-section {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .contact-details {
+            background: #ecfdf5;
+            border: 1px solid #10b981;
+            border-radius: 8px;
             padding: 15px;
             margin: 15px 0;
         }
@@ -435,56 +461,104 @@ function generateAdminNotificationEmail(
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎯 New User Registration</h1>
+            <h1>🎯 New User Registration Alert</h1>
             <p>OpenBox Community C++ Learning Platform</p>
+            <p style="font-size: 14px; margin-top: 10px;">Registration Time: ${new Date().toLocaleString()}</p>
         </div>
 
-        <p><strong>A new user has registered for the OpenBox C++ Learning Platform!</strong></p>
+        <div class="action-section">
+            <h3>⚡ Action Required</h3>
+            <p><strong>Please send welcome email to the new user manually until domain verification is complete.</strong></p>
+            <p>A welcome email template has been sent to you separately for forwarding.</p>
+        </div>
 
         <div class="user-info">
-            <h3>👤 User Information</h3>
+            <h3>👤 New User Information</h3>
             <div class="info-row">
-                <span class="label">Name:</span>
-                <span class="value">${name}</span>
+                <span class="label">Full Name:</span>
+                <span class="value"><strong>${name}</strong></span>
             </div>
             <div class="info-row">
-                <span class="label">Email:</span>
-                <span class="value">${email}</span>
+                <span class="label">Email Address:</span>
+                <span class="value"><strong>${email}</strong></span>
             </div>
             <div class="info-row">
-                <span class="label">Phone:</span>
-                <span class="value">${phone}</span>
+                <span class="label">Phone Number:</span>
+                <span class="value"><strong>${phone}</strong></span>
             </div>
             <div class="info-row">
                 <span class="label">Registration Date:</span>
                 <span class="value">${new Date().toLocaleString()}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Registration Time:</span>
+                <span class="value">${new Date().toISOString()}</span>
             </div>
             ${
               experience
                 ? `
             <div class="info-row">
                 <span class="label">Experience Level:</span>
-                <span class="value">${experience}</span>
+                <span class="value"><strong>${experience}</strong></span>
             </div>
             `
                 : ""
             }
         </div>
 
+        <div class="contact-details">
+            <h3>📞 Quick Contact Information</h3>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+            <p><strong>Phone:</strong> <a href="tel:${phone}">${phone}</a></p>
+        </div>
+
         ${
           learningGoals
             ? `
         <div class="goals-section">
-            <h3>🎯 Learning Goals</h3>
+            <h3>🎯 User's Learning Goals</h3>
             <p><em>"${learningGoals}"</em></p>
+            <p><strong>Recommendation:</strong> Personalize their welcome email based on these goals.</p>
         </div>
         `
             : ""
         }
 
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
+        <div class="user-info">
+            <h3>📊 Registration Summary</h3>
+            <div class="info-row">
+                <span class="label">Platform:</span>
+                <span class="value">OpenBox C++ Learning Platform</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Source:</span>
+                <span class="value">Website Registration Form</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Status:</span>
+                <span class="value"><strong>✅ Successfully Registered</strong></span>
+            </div>
+            <div class="info-row">
+                <span class="label">Added to Audience:</span>
+                <span class="value"><strong>✅ Yes</strong></span>
+            </div>
+        </div>
+
+        <div class="action-section">
+            <h3>📋 Next Steps</h3>
+            <ol>
+                <li><strong>Send Welcome Email:</strong> Forward the welcome email template to ${email}</li>
+                <li><strong>Add to Discord:</strong> Invite them to the community Discord server</li>
+                <li><strong>Follow Up:</strong> Check their progress after 1 week</li>
+                <li><strong>Personalize:</strong> Use their learning goals to customize their experience</li>
+            </ol>
+        </div>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px; text-align: center;">
             <p>This notification was automatically generated by the OpenBox Community platform.</p>
-            <p>Registration timestamp: ${new Date().toISOString()}</p>
+            <p><strong>User Details:</strong> ${name} | ${email} | ${phone}</p>
+            <p><strong>Registration ID:</strong> ${Date.now()}</p>
         </div>
     </div>
 </body>

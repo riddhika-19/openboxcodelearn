@@ -8,19 +8,36 @@ export async function POST(request: NextRequest) {
     const { email } = await request.json()
 
     if (!email) {
-      return NextResponse.json({ error: "Email is required", success: false }, { status: 400 })
+      return NextResponse.json({ error: "Email is required" }, { status: 400 })
     }
 
-    // Test email sending
+    // Send test email using verified domain
     const result = await resend.emails.send({
-      from: "OpenBox Test <onboarding@resend.dev>",
-      to: [email],
-      subject: "🧪 Resend Test Email - OpenBox Platform",
+      from: "OpenBox Community <info.aviralone@gmail.com>", // Use your verified email
+      to: ["info.aviralone@gmail.com"], // Can only send to verified email in testing
+      subject: "🧪 Test Email from OpenBox Community",
       html: `
-        <h1>Test Email Successful! 🎉</h1>
-        <p>This is a test email from your OpenBox C++ Learning Platform.</p>
-        <p>If you received this email, your Resend integration is working correctly.</p>
-        <p>Timestamp: ${new Date().toISOString()}</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #3b82f6;">✅ Test Email Successful!</h2>
+          <p>This is a test email from the OpenBox Community platform.</p>
+          
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3>Test Details:</h3>
+            <p><strong>Requested for:</strong> ${email}</p>
+            <p><strong>Sent to:</strong> info.aviralone@gmail.com (verified email)</p>
+            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+          </div>
+          
+          <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #f59e0b;">
+            <h4>📝 Note:</h4>
+            <p>In testing mode, emails can only be sent to your verified email address. To send to other recipients, please verify a domain at <a href="https://resend.com/domains">resend.com/domains</a>.</p>
+          </div>
+          
+          <p style="margin-top: 20px;">
+            <strong>OpenBox Community</strong><br>
+            C++ Learning Platform
+          </p>
+        </div>
       `,
     })
 
@@ -34,12 +51,12 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("Resend test error:", error)
+    console.error("Test email error:", error)
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Failed to send test email",
-        details: error,
+        error: "Failed to send test email",
+        details: error.message,
         config: {
           apiKeySet: !!process.env.RESEND_API_KEY,
           audienceIdSet: !!process.env.RESEND_AUDIENCE_ID,
