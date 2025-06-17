@@ -1,7 +1,5 @@
 DeepSeek C++ Learning Platform
-https://img.shields.io/badge/Deployed%2520on-Vercel-black?style=for-the-badge&logo=vercel
-https://img.shields.io/badge/Open%2520in-Codespaces-blue?style=for-the-badge&logo=github
-https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge
+
 
 An open-source, AI-powered C++ learning platform
 Learn C++ through interactive coding, real-time feedback, and community contributions.
