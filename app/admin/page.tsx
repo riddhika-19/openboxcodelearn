@@ -1,17 +1,19 @@
 "use client"
 
 import { EmailTestPanel } from "@/components/email-test-panel"
+import { MistakeTrackerPanel } from "@/components/mistake-tracker-panel"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Settings, Mail, Users, BarChart3 } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Settings, Mail, Users, AlertTriangle, MessageSquare } from "lucide-react"
 
 export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage emails and monitor platform activity</p>
+          <p className="text-gray-600">Manage emails, track mistakes, and monitor platform activity</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -46,12 +48,12 @@ export default function AdminPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <BarChart3 className="w-5 h-5 text-purple-600" />
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Open Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">85%</p>
+                  <p className="text-sm font-medium text-gray-600">Mistakes Tracked</p>
+                  <p className="text-2xl font-bold text-gray-900">2,500+</p>
                 </div>
               </div>
             </CardContent>
@@ -60,48 +62,126 @@ export default function AdminPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Settings className="w-5 h-5 text-orange-600" />
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <MessageSquare className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Status</p>
-                  <Badge variant="default">Active</Badge>
+                  <p className="text-sm font-medium text-gray-600">SMS Sent</p>
+                  <p className="text-2xl font-bold text-gray-900">1,200+</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <EmailTestPanel />
+        <Tabs defaultValue="emails" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="emails">Email Management</TabsTrigger>
+            <TabsTrigger value="mistakes">Mistake Tracking</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Configuration</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="font-semibold">Current Settings:</h3>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• From: OpenBox Community &lt;noreply@openboxcommunity.dev&gt;</li>
-                  <li>• Admin: info.aviralone@gmail.com</li>
-                  <li>• Provider: Resend</li>
-                  <li>• Daily emails: Manual trigger</li>
-                </ul>
-              </div>
+          <TabsContent value="emails" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <EmailTestPanel />
 
-              <div className="space-y-2">
-                <h3 className="font-semibold">Email Types:</h3>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>✅ Welcome emails (automatic)</li>
-                  <li>✅ Admin notifications (automatic)</li>
-                  <li>✅ Progress emails (manual/scheduled)</li>
-                  <li>✅ Personalized content (4 personality types)</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Email Configuration</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">Current Settings:</h3>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• From: OpenBox Community &lt;noreply@openboxcommunity.dev&gt;</li>
+                      <li>• Admin: info.aviralone@gmail.com</li>
+                      <li>• Provider: Resend</li>
+                      <li>• Daily emails: Manual trigger</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">Email Types:</h3>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>✅ Welcome emails (automatic)</li>
+                      <li>✅ Admin notifications (automatic)</li>
+                      <li>✅ Progress emails (manual/scheduled)</li>
+                      <li>✅ Personalized content (4 personality types)</li>
+                      <li>✅ Consultation offers (mistake-triggered)</li>
+                      <li>✅ Weekly mistake reports</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="mistakes" className="space-y-6">
+            <MistakeTrackerPanel />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    System Configuration
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">API Integrations:</h3>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>✅ Resend Email API</li>
+                      <li>✅ DeepSeek AI API</li>
+                      <li>⚠️ SMS Service (Simulated)</li>
+                      <li>✅ Local Storage (User Data)</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">Mistake Tracking:</h3>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>✅ Automatic mistake detection</li>
+                      <li>✅ First mistake notifications</li>
+                      <li>✅ Weekly report generation</li>
+                      <li>✅ Consultation email triggers</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Platform Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Email Service</span>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">AI Feedback</span>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Mistake Tracking</span>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">SMS Service</span>
+                    <Badge variant="secondary">Simulated</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">User Registration</span>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
