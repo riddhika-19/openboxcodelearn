@@ -21,6 +21,7 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
+  const [registrationResult, setRegistrationResult] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -48,15 +49,16 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
       const result = await response.json()
 
       if (result.success) {
+        setRegistrationResult(result)
         setIsSuccess(true)
         localStorage.setItem("openbox-user", JSON.stringify(result.userData))
         localStorage.setItem("openbox-first-visit", "false")
 
-        // Auto-close after showing success for 4 seconds
+        // Auto-close after showing success for 5 seconds
         setTimeout(() => {
           onClose()
           window.location.reload()
-        }, 4000)
+        }, 5000)
       } else {
         alert(result.error || "Registration failed. Please try again.")
       }
@@ -91,6 +93,9 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
 
   // Success State
   if (isSuccess) {
+    const welcomeEmailSent = registrationResult?.debug?.welcomeEmailSent
+    const contactCreated = registrationResult?.debug?.contactCreated
+
     return (
       <Dialog open={isOpen} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-[500px] border-0 shadow-2xl" hideCloseButton>
@@ -133,13 +138,33 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
               </div>
             </div>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-              <p className="text-yellow-800 text-sm font-medium">
-                📧 Check your email! We've sent you a personalized welcome message with your learning roadmap.
+            {/* Email Status */}
+            <div
+              className={`border rounded-lg p-4 mb-6 ${
+                welcomeEmailSent ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200"
+              }`}
+            >
+              <p className={`text-sm font-medium ${welcomeEmailSent ? "text-green-800" : "text-yellow-800"}`}>
+                {welcomeEmailSent
+                  ? `📧 Welcome email sent to ${formData.email}! Check your inbox.`
+                  : "📧 Welcome email is being processed. You'll receive it shortly."}
               </p>
             </div>
 
-            <div className="text-sm text-gray-500 animate-pulse">Starting your C++ journey in 4 seconds...</div>
+            {/* Community Status */}
+            <div
+              className={`border rounded-lg p-4 mb-6 ${
+                contactCreated ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-200"
+              }`}
+            >
+              <p className={`text-sm font-medium ${contactCreated ? "text-blue-800" : "text-gray-800"}`}>
+                {contactCreated
+                  ? "👥 Added to community mailing list successfully!"
+                  : "👥 Adding you to our community list..."}
+              </p>
+            </div>
+
+            <div className="text-sm text-gray-500 animate-pulse">Starting your C++ journey in 5 seconds...</div>
           </div>
         </DialogContent>
       </Dialog>
@@ -249,7 +274,7 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-green-600">100%</div>
-                    <div className="text-xs text-gray-600">Free</div>
+                    <div class="text-xs text-gray-600">Free</div>
                   </div>
                 </div>
               </div>
@@ -276,7 +301,7 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
               <div className="text-center">
                 <div className="text-4xl mb-3">📝</div>
                 <h2 className="text-xl font-bold text-gray-900 mb-2">Just 3 Quick Details</h2>
-                <p className="text-gray-600 text-sm">We'll use this to personalize your learning experience</p>
+                <p className="text-gray-600 text-sm">We'll send you a welcome email immediately after registration</p>
               </div>
 
               <div className="space-y-4">
@@ -298,7 +323,7 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
                 <div>
                   <Label htmlFor="email" className="flex items-center gap-2 mb-2 font-medium">
                     <Mail className="w-4 h-4 text-blue-600" />
-                    Email for daily updates *
+                    Email for welcome message *
                   </Label>
                   <Input
                     id="email"
@@ -328,14 +353,15 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
                 </div>
               </div>
 
-              {/* Privacy Note */}
+              {/* Email Promise */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-medium text-green-900 mb-1">Your privacy matters</p>
+                    <p className="font-medium text-green-900 mb-1">Instant Welcome Email</p>
                     <p className="text-green-700">
-                      We'll only send helpful C++ learning content. No spam, ever. Unsubscribe anytime with one click.
+                      You'll receive a personalized welcome email immediately after clicking "Join OpenBox!" Check your
+                      inbox for next steps and learning resources.
                     </p>
                   </div>
                 </div>
@@ -349,7 +375,7 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Joining...
+                      Joining & Sending Email...
                     </>
                   ) : (
                     <>

@@ -22,7 +22,28 @@ export async function POST(request: NextRequest) {
       errors: [],
     }
 
-    // 1. Add user to Resend contacts/audience FIRST (most important)
+    // 1. Send welcome email to user FIRST (highest priority)
+    try {
+      console.log("📨 Sending welcome email to user:", email)
+      const welcomeEmail = await resend.emails.send({
+        from: "OpenBox Community <onboarding@resend.dev>",
+        to: [email],
+        subject: "🚀 Welcome to OpenBox Community - Your C++ Journey Begins!",
+        html: generateWelcomeEmail(name, learningGoals, experience),
+      })
+
+      results.welcomeEmail = welcomeEmail
+      console.log("✅ Welcome email sent successfully to user:", welcomeEmail.data?.id)
+    } catch (emailError) {
+      console.error("❌ Failed to send welcome email:", emailError)
+      results.errors.push({
+        type: "welcome_email",
+        error: emailError.message || "Unknown email error",
+        details: emailError,
+      })
+    }
+
+    // 2. Add user to Resend contacts/audience
     try {
       console.log("📧 Adding contact to Resend audience...")
       const contactResult = await resend.contacts.create({
@@ -44,35 +65,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 2. Send welcome email directly to user using Resend's verified domain
-    try {
-      console.log("📨 Sending welcome email to user...")
-      const welcomeEmail = await resend.emails.send({
-        from: "OpenBox Community <onboarding@resend.dev>", // Use Resend's verified domain
-        to: [email], // Send directly to user
-        subject: "🚀 Welcome to OpenBox Community - Your C++ Journey Begins!",
-        html: generateWelcomeEmail(name, learningGoals, experience),
-      })
-
-      results.welcomeEmail = welcomeEmail
-      console.log("✅ Welcome email sent successfully to user:", welcomeEmail.data?.id)
-    } catch (emailError) {
-      console.error("❌ Failed to send welcome email:", emailError)
-      results.errors.push({
-        type: "welcome_email",
-        error: emailError.message || "Unknown email error",
-        details: emailError,
-      })
-    }
-
     // 3. Send notification to admin
     try {
       console.log("📬 Sending admin notification...")
       const adminEmail = await resend.emails.send({
-        from: "OpenBox Community <onboarding@resend.dev>", // Use Resend's verified domain
+        from: "OpenBox Community <onboarding@resend.dev>",
         to: ["info.aviralone@gmail.com"],
         subject: "🎯 New User Registration - OpenBox C++ Platform",
-        html: generateAdminNotificationEmail(name, email, phone, learningGoals, experience),
+        html: generateAdminNotificationEmail(
+          name,
+          email,
+          phone,
+          learningGoals,
+          experience,
+          results.welcomeEmail?.data?.id,
+        ),
       })
 
       results.adminEmail = adminEmail
@@ -101,25 +108,37 @@ export async function POST(request: NextRequest) {
       totalScore: 0,
       resendContactId: results.contactCreated?.data?.id || null,
       addedToResendAudience: !!results.contactCreated?.data?.id,
+      welcomeEmailSent: !!results.welcomeEmail?.data?.id,
+      welcomeEmailId: results.welcomeEmail?.data?.id,
       emailResults: results,
     }
 
     // Log final results
     console.log("📊 Registration completed:", {
-      contactCreated: !!results.contactCreated?.data?.id,
       welcomeEmailSent: !!results.welcomeEmail?.data?.id,
+      contactCreated: !!results.contactCreated?.data?.id,
       adminEmailSent: !!results.adminEmail?.data?.id,
       errorsCount: results.errors.length,
     })
 
+    // Determine success message based on what worked
+    let message = "Registration successful! "
+    if (results.welcomeEmail?.data?.id) {
+      message += "Welcome email sent - check your inbox! "
+    } else {
+      message += "Welcome email may be delayed. "
+    }
+    if (results.contactCreated?.data?.id) {
+      message += "You've been added to our community list."
+    }
+
     return NextResponse.json({
       success: true,
-      message:
-        "Registration successful! " +
-        (results.contactCreated?.data?.id ? "You've been added to our community list. " : "") +
-        (results.welcomeEmail?.data?.id ? "Check your email for welcome message." : "Welcome email may be delayed."),
+      message,
       userData,
       debug: {
+        welcomeEmailSent: !!results.welcomeEmail?.data?.id,
+        welcomeEmailId: results.welcomeEmail?.data?.id,
         contactCreated: !!results.contactCreated?.data?.id,
         contactId: results.contactCreated?.data?.id,
         emailsSent: {
@@ -294,6 +313,16 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             border-radius: 6px;
             font-size: 14px;
         }
+        .welcome-badge {
+            background: #dcfce7;
+            color: #166534;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
         @media (max-width: 600px) {
             body { padding: 10px; }
             .container { padding: 20px; }
@@ -306,14 +335,17 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
     <div class="container">
         <div class="header">
             <div class="logo">📦 OPENBOX</div>
-            <h1 class="welcome-title">Welcome to the Community, ${name}! 🎉</h1>
+            <div class="welcome-badge">🎉 Welcome New Member!</div>
+            <h1 class="welcome-title">Welcome to the Community, ${name}! 🚀</h1>
             <p class="subtitle">Your C++ mastery journey starts now</p>
         </div>
 
         <div class="content">
             <p>Hi <strong>${name}</strong>,</p>
             
-            <p>Welcome to the <strong>OpenBox Community</strong>! We're thrilled to have you join our growing family of passionate C++ developers. You've just taken the first step towards mastering one of the most powerful programming languages in the world.</p>
+            <p><strong>🎉 Congratulations!</strong> You've successfully joined the <strong>OpenBox Community</strong>! We're absolutely thrilled to have you as part of our growing family of passionate C++ developers.</p>
+
+            <p>You've just taken the first step towards mastering one of the most powerful and in-demand programming languages in the world. Whether you're aiming for your dream job, building amazing projects, or just exploring the world of programming, we're here to support you every step of the way!</p>
 
             ${
               learningGoals
@@ -321,7 +353,7 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             <div class="personalized-section">
                 <h3>🎯 Your Learning Goals</h3>
                 <p>We noticed you mentioned: <em>"${learningGoals}"</em></p>
-                <p>Our community-driven curriculum is designed to help you achieve exactly these goals. We'll send you personalized progress updates and recommendations based on your objectives.</p>
+                <p>Perfect! Our community-driven curriculum and personalized learning path are designed to help you achieve exactly these goals. We'll send you targeted progress updates and recommendations based on your objectives.</p>
             </div>
             `
                 : ""
@@ -333,7 +365,7 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
             <div class="personalized-section">
                 <h3>📊 Your Experience Level</h3>
                 <p>Experience Level: <strong>${experience}</strong></p>
-                <p>We've tailored your learning path to match your current skill level. You'll receive content that challenges you appropriately while building a solid foundation.</p>
+                <p>Great! We've tailored your learning journey to match your current skill level. You'll receive content that challenges you appropriately while building a solid foundation for advanced concepts.</p>
             </div>
             `
                 : ""
@@ -345,29 +377,29 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
                 <div class="feature-card">
                     <div class="feature-icon">🤖</div>
                     <div class="feature-title">AI-Powered Learning</div>
-                    <div class="feature-desc">Get personalized feedback and hints powered by DeepSeek AI to accelerate your learning.</div>
+                    <div class="feature-desc">Get personalized feedback, hints, and code reviews powered by DeepSeek AI to accelerate your learning journey.</div>
                 </div>
                 
                 <div class="feature-card">
                     <div class="feature-icon">👥</div>
-                    <div class="feature-title">Community Support</div>
-                    <div class="feature-desc">Join 15,000+ learners in our Discord community for 24/7 support and collaboration.</div>
+                    <div class="feature-title">Vibrant Community</div>
+                    <div class="feature-desc">Join 15,000+ active learners in our Discord community for 24/7 support, collaboration, and networking.</div>
                 </div>
                 
                 <div class="feature-card">
                     <div class="feature-icon">💻</div>
                     <div class="feature-title">Interactive Playground</div>
-                    <div class="feature-desc">Write, compile, and run C++ code directly in your browser with real-time feedback.</div>
+                    <div class="feature-desc">Write, compile, and run C++ code directly in your browser with real-time feedback and debugging tools.</div>
                 </div>
                 
                 <div class="feature-card">
                     <div class="feature-icon">📚</div>
-                    <div class="feature-title">Structured Learning</div>
-                    <div class="feature-desc">Follow our comprehensive 2-month placement plan with daily lessons and progress tracking.</div>
+                    <div class="feature-title">Structured Learning Path</div>
+                    <div class="feature-desc">Follow our comprehensive 2-month placement-ready plan with daily lessons, projects, and progress tracking.</div>
                 </div>
             </div>
 
-            <h2>📈 Community Impact</h2>
+            <h2>📈 Join a Thriving Community</h2>
             <div class="stats">
                 <div class="stat-item">
                     <div class="stat-number">15,000+</div>
@@ -390,35 +422,41 @@ function generateWelcomeEmail(name: string, learningGoals?: string, experience?:
 
         <div class="cta-section">
             <h2>🎯 Ready to Start Your Journey?</h2>
-            <p>Begin with our interactive playground or dive into our structured 2-month placement plan designed by industry experts.</p>
+            <p>Don't wait! Begin with our interactive playground or dive into our structured learning plan designed by industry experts and successful developers.</p>
             
-            <a href="https://github.com/riddhika-19/openboxcodelearn" class="cta-button">🚀 Start Coding</a>
+            <a href="https://github.com/riddhika-19/openboxcodelearn" class="cta-button">🚀 Start Coding Now</a>
             <a href="https://github.com/riddhika-19/openboxcodelearn" class="cta-button">📅 View Learning Plan</a>
         </div>
 
         <div class="content">
             <h3>📧 What to Expect Next</h3>
             <ul>
-                <li><strong>Daily Progress Updates:</strong> Personalized emails tracking your learning journey</li>
-                <li><strong>Weekly Challenges:</strong> Community-created coding challenges to test your skills</li>
-                <li><strong>Milestone Celebrations:</strong> Recognition when you complete major learning objectives</li>
-                <li><strong>Community Highlights:</strong> Success stories and tips from fellow learners</li>
+                <li><strong>Daily Progress Updates:</strong> Personalized emails tracking your learning journey and celebrating milestones</li>
+                <li><strong>Weekly Challenges:</strong> Community-created coding challenges to test and improve your skills</li>
+                <li><strong>Milestone Celebrations:</strong> Recognition and rewards when you complete major learning objectives</li>
+                <li><strong>Community Highlights:</strong> Success stories, tips, and insights from fellow learners and mentors</li>
+                <li><strong>Expert Guidance:</strong> Access to experienced developers and industry professionals</li>
             </ul>
 
-            <h3>🤝 Join Our Community</h3>
-            <p>Connect with fellow learners, get help from mentors, and contribute to our open-source mission:</p>
+            <h3>🤝 Connect with Our Community</h3>
+            <p>Don't learn alone! Connect with fellow learners, get help from mentors, and contribute to our open-source mission:</p>
             
             <div class="social-links">
                 <a href="https://github.com/riddhika-19/openboxcodelearn" class="social-link">💬 Discord Community</a>
                 <a href="https://github.com/riddhika-19/openboxcodelearn" class="social-link">🐙 GitHub Repository</a>
                 <a href="https://github.com/riddhika-19/openboxcodelearn" class="social-link">📱 Mobile App</a>
             </div>
+
+            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                <h4 style="margin: 0 0 10px 0; color: #92400e;">💡 Pro Tip for Success</h4>
+                <p style="margin: 0; color: #92400e;">Set aside 30 minutes daily for consistent practice. Small, regular efforts lead to massive results in programming!</p>
+            </div>
         </div>
 
         <div class="footer">
             <p><strong>Built with ❤️ by the OpenBox Community</strong></p>
-            <p>This email was sent to ${name} because you registered for the OpenBox C++ Learning Platform.</p>
-            <p>Questions? Reply to this email or reach out to our community support.</p>
+            <p>This email was sent to <strong>${name}</strong> because you just registered for the OpenBox C++ Learning Platform.</p>
+            <p>Questions? Simply reply to this email or reach out to our community support team.</p>
             <p style="margin-top: 20px; font-size: 12px; color: #94a3b8;">
                 OpenBox Community • Open Source Education • Making Programming Accessible to Everyone
             </p>
@@ -435,6 +473,7 @@ function generateAdminNotificationEmail(
   phone: string,
   learningGoals?: string,
   experience?: string,
+  welcomeEmailId?: string,
 ): string {
   return `
 <!DOCTYPE html>
@@ -512,15 +551,42 @@ function generateAdminNotificationEmail(
             font-weight: bold;
             display: inline-block;
         }
+        .email-status {
+            background: #dbeafe;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎯 New User Registration</h1>
+            <h1>🎯 New User Registration Alert</h1>
             <p>OpenBox Community C++ Learning Platform</p>
-            <div class="success-badge">✅ Registration Successful</div>
+            <div class="success-badge">✅ Registration & Email Sent Successfully</div>
         </div>
+
+        ${
+          welcomeEmailId
+            ? `
+        <div class="email-status">
+            <h3>📧 Welcome Email Status</h3>
+            <p><strong>✅ Welcome email sent successfully to user!</strong></p>
+            <p><strong>Email ID:</strong> ${welcomeEmailId}</p>
+            <p><strong>Recipient:</strong> ${email}</p>
+            <p>The user should receive their welcome email within a few minutes.</p>
+        </div>
+        `
+            : `
+        <div class="email-status">
+            <h3>⚠️ Welcome Email Status</h3>
+            <p><strong>❌ Welcome email failed to send</strong></p>
+            <p><strong>Action Required:</strong> Please manually send welcome email to ${email}</p>
+        </div>
+        `
+        }
 
         <div class="user-info">
             <h3>👤 New User Information</h3>
@@ -565,7 +631,7 @@ function generateAdminNotificationEmail(
         <div class="goals-section">
             <h3>🎯 User's Learning Goals</h3>
             <p><em>"${learningGoals}"</em></p>
-            <p><strong>Recommendation:</strong> Consider personalizing their learning path based on these goals.</p>
+            <p><strong>Recommendation:</strong> Consider personalizing their learning path based on these specific goals.</p>
         </div>
         `
             : ""
@@ -583,7 +649,7 @@ function generateAdminNotificationEmail(
             </div>
             <div class="info-row">
                 <span class="label">Welcome Email:</span>
-                <span class="value"><strong>✅ Sent to User</strong></span>
+                <span class="value"><strong>${welcomeEmailId ? "✅ Sent Successfully" : "❌ Failed"}</strong></span>
             </div>
             <div class="info-row">
                 <span class="label">Added to Audience:</span>
@@ -592,12 +658,15 @@ function generateAdminNotificationEmail(
         </div>
 
         <div style="background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin: 20px 0;">
-            <h3>📋 Next Steps</h3>
+            <h3>📋 Recommended Next Steps</h3>
             <ul>
-                <li><strong>Follow Up:</strong> User has received welcome email automatically</li>
-                <li><strong>Discord Invite:</strong> Consider inviting them to the community Discord</li>
-                <li><strong>Progress Tracking:</strong> Monitor their learning progress after 1 week</li>
-                <li><strong>Personalization:</strong> Use their goals to customize their experience</li>
+                <li><strong>Monitor Welcome Email:</strong> ${
+                  welcomeEmailId ? "Email sent successfully - no action needed" : "Send manual welcome email"
+                }</li>
+                <li><strong>Discord Invitation:</strong> Consider inviting them to the community Discord server</li>
+                <li><strong>Progress Check:</strong> Follow up on their learning progress after 1 week</li>
+                <li><strong>Personalization:</strong> Use their learning goals to customize their experience</li>
+                <li><strong>Community Introduction:</strong> Help them connect with other learners at similar levels</li>
             </ul>
         </div>
 
@@ -605,6 +674,7 @@ function generateAdminNotificationEmail(
             <p>This notification was automatically generated by the OpenBox Community platform.</p>
             <p><strong>User Details:</strong> ${name} | ${email} | ${phone}</p>
             <p><strong>Registration Time:</strong> ${new Date().toISOString()}</p>
+            ${welcomeEmailId ? `<p><strong>Welcome Email ID:</strong> ${welcomeEmailId}</p>` : ""}
         </div>
     </div>
 </body>
