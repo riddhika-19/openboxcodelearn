@@ -11,10 +11,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 })
     }
 
-    // Send test email using verified domain
+    // Send test email using Resend's verified domain
     const result = await resend.emails.send({
-      from: "OpenBox Community <info.aviralone@gmail.com>", // Use your verified email
-      to: ["info.aviralone@gmail.com"], // Can only send to verified email in testing
+      from: "OpenBox Community <onboarding@resend.dev>", // Use Resend's verified domain
+      to: [email], // Can now send to any email
       subject: "🧪 Test Email from OpenBox Community",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -23,19 +23,21 @@ export async function POST(request: NextRequest) {
           
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <h3>Test Details:</h3>
-            <p><strong>Requested for:</strong> ${email}</p>
-            <p><strong>Sent to:</strong> info.aviralone@gmail.com (verified email)</p>
+            <p><strong>Sent to:</strong> ${email}</p>
+            <p><strong>From:</strong> OpenBox Community &lt;onboarding@resend.dev&gt;</p>
             <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+            <p><strong>Status:</strong> ✅ Delivered successfully</p>
           </div>
           
-          <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #f59e0b;">
-            <h4>📝 Note:</h4>
-            <p>In testing mode, emails can only be sent to your verified email address. To send to other recipients, please verify a domain at <a href="https://resend.com/domains">resend.com/domains</a>.</p>
+          <div style="background: #dcfce7; padding: 15px; border-radius: 8px; border: 1px solid #16a34a;">
+            <h4>🎉 Great News!</h4>
+            <p>Your Resend integration is working perfectly! Users will now receive welcome emails directly when they register.</p>
           </div>
           
           <p style="margin-top: 20px;">
             <strong>OpenBox Community</strong><br>
-            C++ Learning Platform
+            C++ Learning Platform<br>
+            <a href="https://github.com/riddhika-19/openboxcodelearn" style="color: #3b82f6;">GitHub Repository</a>
           </p>
         </div>
       `,
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
       config: {
         apiKeySet: !!process.env.RESEND_API_KEY,
         audienceIdSet: !!process.env.RESEND_AUDIENCE_ID,
+        fromDomain: "onboarding@resend.dev",
       },
     })
   } catch (error) {
@@ -60,6 +63,7 @@ export async function POST(request: NextRequest) {
         config: {
           apiKeySet: !!process.env.RESEND_API_KEY,
           audienceIdSet: !!process.env.RESEND_AUDIENCE_ID,
+          fromDomain: "onboarding@resend.dev",
         },
       },
       { status: 500 },
