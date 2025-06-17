@@ -28,6 +28,22 @@ export async function POST(request: NextRequest) {
       html: generateAdminNotificationEmail(name, email, phone, learningGoals, experience),
     })
 
+    // Add user to Resend contacts/audience
+    try {
+      const contactResult = await resend.contacts.create({
+        email: email,
+        firstName: name.split(" ")[0], // First name from full name
+        lastName: name.split(" ").slice(1).join(" ") || "", // Last name(s) from full name
+        unsubscribed: false,
+        audienceId: process.env.RESEND_AUDIENCE_ID || "fa7e26bc-445c-43ff-922b-71aa1c9a3787", // Use env variable or fallback
+      })
+
+      console.log("Contact added to Resend audience:", contactResult)
+    } catch (contactError) {
+      console.error("Failed to add contact to Resend audience:", contactError)
+      // Don't fail the registration if contact creation fails
+    }
+
     // Store user data (in a real app, this would go to a database)
     const userData = {
       name,
@@ -40,6 +56,7 @@ export async function POST(request: NextRequest) {
       currentStreak: 0,
       completedLessons: [],
       totalScore: 0,
+      addedToResendAudience: true, // Track that they were added
     }
 
     return NextResponse.json({
