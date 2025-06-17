@@ -274,7 +274,7 @@ export function FirstTimePopup({ isOpen, onClose }: FirstTimePopupProps) {
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-green-600">100%</div>
-                    <div class="text-xs text-gray-600">Free</div>
+                    <div className="text-xs text-gray-600">Free</div>
                   </div>
                 </div>
               </div>
