@@ -1,30 +1,66 @@
-# Deepseek learning platform
+DeepSeek C++ Learning Platform
+https://img.shields.io/badge/Deployed%2520on-Vercel-black?style=for-the-badge&logo=vercel
+https://img.shields.io/badge/Open%2520in-Codespaces-blue?style=for-the-badge&logo=github
+https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+An open-source, AI-powered C++ learning platform
+Learn C++ through interactive coding, real-time feedback, and community contributions.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/riddhika-19s-projects/v0-deepseek-learning-platform)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/llCGhUSQ3UI)
+🚀 Features
+✅ DeepSeek AI Integration – Smart error explanations and hints
+✅ Interactive Playground – Write, compile, and debug C++ in-browser
+✅ Local Progress Tracking – Save lessons & code snippets offline
+✅ Community-Driven Content – Contribute lessons/exercises
 
-## Overview
+💻 Quick Start
+1. Run Locally
+bash
+git clone https://github.com/your-username/deepseek-cpp-learning.git  
+cd deepseek-cpp-learning  
+npm install  
+npm run dev  
+2. Contribute via GitHub Codespaces
+https://github.com/codespaces/badge.svg
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+👥 How to Contribute
+We welcome developers, educators, and C++ enthusiasts to help improve this project!
 
-## Deployment
+🔹 Ways to Contribute
+Add new C++ lessons (beginner to advanced)
 
-Your project is live at:
+Improve AI feedback prompts (work with DeepSeek API)
 
-**[https://vercel.com/riddhika-19s-projects/v0-deepseek-learning-platform](https://vercel.com/riddhika-19s-projects/v0-deepseek-learning-platform)**
+Fix bugs or enhance UI
 
-## Build your app
+Translate content (i18n support)
 
-Continue building your app on:
+Suggest features via GitHub Issues
 
-**[https://v0.dev/chat/projects/llCGhUSQ3UI](https://v0.dev/chat/projects/llCGhUSQ3UI)**
+🔹 Contribution Workflow
+Fork the repository
 
-## How It Works
+Create a branch (git checkout -b feature/new-lesson)
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+Commit changes (git commit -m "Add pointers lesson")
+
+Push (git push origin feature/new-lesson)
+
+Open a Pull Request
+
+📌 Guidelines:
+
+Follow the Code of Conduct
+
+Document new features in the Wiki
+
+Test changes before submitting
+
+📂 Project Structure
+text
+├── /src  
+│   ├── /components      # React components  
+│   ├── /lessons         # C++ lesson content (Markdown)  
+│   ├── /api             # DeepSeek API integration  
+│   └── /playground      # Code editor & execution engine  
+├── CONTRIBUTING.md      # Contribution guide  
+└── ROADMAP.md           # Future plans  
