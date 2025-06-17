@@ -130,9 +130,11 @@ export default function HomePage() {
                 <Heart className="w-3 h-3 text-red-500" />
                 Open Source
               </Badge>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Github className="w-4 h-4" />
-                <span className="hidden sm:inline">GitHub</span>
+              <Button variant="outline" size="sm" className="gap-2" asChild>
+                <a href="https://github.com/riddhika-19/openboxcodelearn" target="_blank" rel="noopener noreferrer">
+                  <Github className="w-4 h-4" />
+                  <span className="hidden sm:inline">GitHub</span>
+                </a>
               </Button>
             </div>
           </div>
@@ -599,9 +601,12 @@ export default function HomePage() {
                 <Button
                   size="lg"
                   className="w-full sm:w-auto bg-white text-green-600 hover:bg-gray-100 gap-3 shadow-lg"
+                  asChild
                 >
-                  <Github className="w-5 h-5" />
-                  View on GitHub
+                  <a href="https://github.com/riddhika-19/openboxcodelearn" target="_blank" rel="noopener noreferrer">
+                    <Github className="w-5 h-5" />
+                    View on GitHub
+                  </a>
                 </Button>
                 <Button
                   size="lg"

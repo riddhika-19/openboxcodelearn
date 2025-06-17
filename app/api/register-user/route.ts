@@ -1,7 +1,7 @@
 import { Resend } from "resend"
 import { type NextRequest, NextResponse } from "next/server"
 
-const resend = new Resend("re_PFVjWRar_Bj6QC6CSbfrMDfyRekRcbjvt")
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,35 +13,44 @@ export async function POST(request: NextRequest) {
     }
 
     // Send welcome email to user
-    const welcomeEmail = await resend.emails.send({
-      from: "OpenBox Community <noreply@openboxcommunity.dev>",
-      to: [email],
-      subject: "🚀 Welcome to OpenBox Community - Your C++ Journey Begins!",
-      html: generateWelcomeEmail(name, learningGoals, experience),
-    })
+    try {
+      const welcomeEmail = await resend.emails.send({
+        from: "OpenBox Community <onboarding@resend.dev>", // Use verified domain
+        to: [email],
+        subject: "🚀 Welcome to OpenBox Community - Your C++ Journey Begins!",
+        html: generateWelcomeEmail(name, learningGoals, experience),
+      })
+      console.log("Welcome email sent successfully:", welcomeEmail)
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError)
+    }
 
     // Send notification to admin
-    const adminEmail = await resend.emails.send({
-      from: "OpenBox Community <noreply@openboxcommunity.dev>",
-      to: ["info.aviralone@gmail.com"],
-      subject: "🎯 New User Registration - OpenBox C++ Platform",
-      html: generateAdminNotificationEmail(name, email, phone, learningGoals, experience),
-    })
+    try {
+      const adminEmail = await resend.emails.send({
+        from: "OpenBox Community <onboarding@resend.dev>", // Use verified domain
+        to: ["info.aviralone@gmail.com"],
+        subject: "🎯 New User Registration - OpenBox C++ Platform",
+        html: generateAdminNotificationEmail(name, email, phone, learningGoals, experience),
+      })
+      console.log("Admin email sent successfully:", adminEmail)
+    } catch (emailError) {
+      console.error("Failed to send admin email:", emailError)
+    }
 
     // Add user to Resend contacts/audience
     try {
       const contactResult = await resend.contacts.create({
         email: email,
-        firstName: name.split(" ")[0], // First name from full name
-        lastName: name.split(" ").slice(1).join(" ") || "", // Last name(s) from full name
+        firstName: name.split(" ")[0],
+        lastName: name.split(" ").slice(1).join(" ") || "",
         unsubscribed: false,
-        audienceId: process.env.RESEND_AUDIENCE_ID || "fa7e26bc-445c-43ff-922b-71aa1c9a3787", // Use env variable or fallback
+        audienceId: process.env.RESEND_AUDIENCE_ID,
       })
-
-      console.log("Contact added to Resend audience:", contactResult)
+      console.log("Contact added to Resend audience successfully:", contactResult)
     } catch (contactError) {
       console.error("Failed to add contact to Resend audience:", contactError)
-      // Don't fail the registration if contact creation fails
+      console.error("Contact error details:", JSON.stringify(contactError, null, 2))
     }
 
     // Store user data (in a real app, this would go to a database)
